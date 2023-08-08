@@ -58,5 +58,5 @@ fn solution(filename: &str) -> i32 {
 }
 
 fn main() {
-    println!("{}", solution("./input.txt"));    // 1150
+    println!("{}", solution("./input.txt"));    // 748
 }
