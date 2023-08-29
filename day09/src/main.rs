@@ -45,7 +45,7 @@ impl ParameterMode {
             0 => ParameterMode::PositionMode,
             1 => ParameterMode::ImmediateMode,
             2 => ParameterMode::RelativeMode,
-            _ => panic!("Unknown operation: {}", number),
+            _ => panic!("Unknown parameter mode: {}", number),
         }
     }
 }
@@ -123,7 +123,7 @@ impl IntcodeComputer {
         let result_index: i64 =  match operation.third_parameter_mode {
             ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
             ParameterMode::RelativeMode => relative_base + *self.program.entry(self.pointer + 3).or_insert(0),
-            _ => panic!("Incorrect parameter third parameter mode: {:?}", operation.third_parameter_mode),
+            _ => panic!("Incorrect third parameter mode: {:?}", operation.third_parameter_mode),
         };
     
         self.program.insert(result_index, parameter1 + parameter2);
@@ -163,7 +163,7 @@ impl IntcodeComputer {
         let result_index: i64 =  match operation.third_parameter_mode {
             ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
             ParameterMode::RelativeMode => relative_base + *self.program.entry(self.pointer + 3).or_insert(0),
-            _ => panic!("Incorrect parameter third parameter mode: {:?}", operation.third_parameter_mode),
+            _ => panic!("Incorrect third parameter mode: {:?}", operation.third_parameter_mode),
         };
     
         self.program.insert(result_index, parameter1 * parameter2);
@@ -181,7 +181,7 @@ impl IntcodeComputer {
                 let index: i64 = relative_base + *self.program.entry(self.pointer + 1).or_insert(0);
                 self.program.insert(index, input);
             },
-            _ => panic!("Incorrect parameter first parameter mode: {:?}", operation.first_parameter_mode),
+            _ => panic!("Incorrect first parameter mode: {:?}", operation.first_parameter_mode),
         }
         self.pointer += 2;
     }
@@ -238,7 +238,7 @@ impl IntcodeComputer {
         let result_index: i64 =  match operation.third_parameter_mode {
             ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
             ParameterMode::RelativeMode => relative_base + *self.program.entry(self.pointer + 3).or_insert(0),
-            _ => panic!("Incorrect parameter third parameter mode: {:?}", operation.third_parameter_mode),
+            _ => panic!("Incorrect third parameter mode: {:?}", operation.third_parameter_mode),
         };
     
         if parameter1 < parameter2 {
@@ -260,7 +260,7 @@ impl IntcodeComputer {
         let result_index: i64 =  match operation.third_parameter_mode {
             ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
             ParameterMode::RelativeMode => relative_base + *self.program.entry(self.pointer + 3).or_insert(0),
-            _ => panic!("Incorrect parameter third parameter mode: {:?}", operation.third_parameter_mode),
+            _ => panic!("Incorrect third parameter mode: {:?}", operation.third_parameter_mode),
         };
     
         if parameter1 == parameter2 {
