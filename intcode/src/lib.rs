@@ -64,6 +64,17 @@ pub struct IntcodeComputer {
     pub pointer: i64,
     pub halted: bool,
     pub relative_base: i64,
+    pub get_input: fn(&mut VecDeque<i64>) -> Option<i64>,
+    pub is_output_ready: fn(& Vec<i64>) -> bool,
+}
+
+
+fn get_input(input: &mut VecDeque<i64>) -> Option<i64> {
+    input.pop_front()
+}
+
+fn is_output_ready(_output: &Vec<i64>) -> bool {
+    false
 }
 
 impl IntcodeComputer {
@@ -75,6 +86,8 @@ impl IntcodeComputer {
             pointer: 0,
             halted: false,
             relative_base: 0,
+            get_input: get_input,
+            is_output_ready: is_output_ready,
         }
     }
 
@@ -86,12 +99,11 @@ impl IntcodeComputer {
             match operation.operation {
                 OperationType::SUM => self.sum(operation),
                 OperationType::MUL => self.mul(operation),
-                OperationType::CPY => {
-                    if input.len() == 0 {
-                        return output;
-                    }
-                    self.cpy(input, operation);
-                }
+                OperationType::CPY =>
+                    match (self.get_input)(input) {
+                        Some(input_value) => self.cpy(input_value, operation),
+                        None => return output,
+                    },
                 OperationType::OUT => self.out(operation, &mut output),
                 OperationType::JIT => self.jit(operation),
                 OperationType::JIF => self.jif(operation),
@@ -99,6 +111,10 @@ impl IntcodeComputer {
                 OperationType::EQL => self.eql(operation),
                 OperationType::ARB => self.arb(operation),
                 OperationType::END => break,
+            }
+
+            if (is_output_ready)(&output) {
+                return output;
             }
         }
         self.halted = true;
@@ -187,8 +203,8 @@ impl IntcodeComputer {
         self.pointer += 4;
     }
 
-    fn cpy(&mut self, inputs: &mut VecDeque<i64>, operation: Operation) {
-        let input: i64 = inputs.pop_front().unwrap();
+    fn cpy(&mut self, input: i64, operation: Operation) {
+        // let input: i64 = inputs.pop_front().unwrap();
         match operation.first_parameter_mode {
             ParameterMode::PositionMode => {
                 let index: i64 = *self.program.entry(self.pointer + 1).or_insert(0);
