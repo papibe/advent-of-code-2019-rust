@@ -65,9 +65,8 @@ pub struct IntcodeComputer {
     pub halted: bool,
     pub relative_base: i64,
     pub get_input: fn(&mut VecDeque<i64>) -> Option<i64>,
-    pub is_output_ready: fn(& Vec<i64>) -> bool,
+    pub is_output_ready: fn(&Vec<i64>) -> bool,
 }
-
 
 fn get_input(input: &mut VecDeque<i64>) -> Option<i64> {
     input.pop_front()
@@ -78,7 +77,6 @@ fn is_output_ready(_output: &Vec<i64>) -> bool {
 }
 
 impl IntcodeComputer {
-    
     pub fn new(program: HashMap<i64, i64>) -> Self {
         IntcodeComputer {
             address: 0,
@@ -96,20 +94,23 @@ impl IntcodeComputer {
         loop {
             let operation: Operation = self.parse_instruction();
 
+            let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
+            let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+            let parameter3: i64 = self.get_third_parameter(operation.third_parameter_mode);
+
             match operation.operation {
-                OperationType::SUM => self.sum(operation),
-                OperationType::MUL => self.mul(operation),
-                OperationType::CPY =>
-                    match (self.get_input)(input) {
-                        Some(input_value) => self.cpy(input_value, operation),
-                        None => return output,
-                    },
-                OperationType::OUT => self.out(operation, &mut output),
-                OperationType::JIT => self.jit(operation),
-                OperationType::JIF => self.jif(operation),
-                OperationType::LTH => self.lth(operation),
-                OperationType::EQL => self.eql(operation),
-                OperationType::ARB => self.arb(operation),
+                OperationType::SUM => self.sum(parameter1, parameter2, parameter3),
+                OperationType::MUL => self.mul(parameter1, parameter2, parameter3),
+                OperationType::CPY => match (self.get_input)(input) {
+                    Some(input_value) => self.cpy(input_value, parameter1),
+                    None => return output,
+                },
+                OperationType::OUT => self.out(parameter1, &mut output),
+                OperationType::JIT => self.jit(parameter1, parameter2),
+                OperationType::JIF => self.jif(parameter1, parameter2),
+                OperationType::LTH => self.lth(parameter1, parameter2, parameter3),
+                OperationType::EQL => self.eql(parameter1, parameter2, parameter3),
+                OperationType::ARB => self.arb(parameter1),
                 OperationType::END => break,
             }
 
@@ -140,38 +141,27 @@ impl IntcodeComputer {
         }
     }
 
-    fn sum(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn sum(&mut self, parameter1: i64, parameter2: i64, parameter3: i64) {
+        // let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
+        // let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
 
-        let result_index: i64 = match operation.third_parameter_mode {
-            ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
-            ParameterMode::RelativeMode => {
-                self.relative_base + *self.program.entry(self.pointer + 3).or_insert(0)
-            }
-            _ => panic!(
-                "Incorrect third parameter mode: {:?}",
-                operation.third_parameter_mode
-            ),
-        };
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        self.program.insert(result_index, parameter1 + parameter2);
+        self.program.insert(parameter3, operand1 + operand2);
         self.pointer += 4;
     }
 
     fn get_parameter(&mut self, parameter_mode: ParameterMode, offset: i64) -> i64 {
         match parameter_mode {
             ParameterMode::PositionMode => {
-                let index: i64 = *self.program.entry(self.pointer + offset).or_insert(0);
-                return *self.program.entry(index).or_insert(0);
+                *self.program.entry(self.pointer + offset).or_insert(0)
+                // return *self.program.entry(index).or_insert(0);
             }
-            ParameterMode::ImmediateMode => {
-                return *self.program.entry(self.pointer + offset).or_insert(0)
-            }
+            ParameterMode::ImmediateMode => self.pointer + offset,
             ParameterMode::RelativeMode => {
-                let index: i64 =
-                    self.relative_base + *self.program.entry(self.pointer + offset).or_insert(0);
-                return *self.program.entry(index).or_insert(0);
+                self.relative_base + *self.program.entry(self.pointer + offset).or_insert(0)
+                // return *self.program.entry(index).or_insert(0);
             }
         }
     }
@@ -184,123 +174,80 @@ impl IntcodeComputer {
         self.get_parameter(second_parameter_mode, 2)
     }
 
-    fn mul(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn get_third_parameter(&mut self, third_parameter_mode: ParameterMode) -> i64 {
+        self.get_parameter(third_parameter_mode, 3)
+    }
 
-        let result_index: i64 = match operation.third_parameter_mode {
-            ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
-            ParameterMode::RelativeMode => {
-                self.relative_base + *self.program.entry(self.pointer + 3).or_insert(0)
-            }
-            _ => panic!(
-                "Incorrect third parameter mode: {:?}",
-                operation.third_parameter_mode
-            ),
-        };
+    fn mul(&mut self, parameter1: i64, parameter2: i64, parameter3: i64) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        self.program.insert(result_index, parameter1 * parameter2);
+        self.program.insert(parameter3, operand1 * operand2);
         self.pointer += 4;
     }
 
-    fn cpy(&mut self, input: i64, operation: Operation) {
+    fn cpy(&mut self, input: i64, parameter1: i64) {
         // let input: i64 = inputs.pop_front().unwrap();
-        match operation.first_parameter_mode {
-            ParameterMode::PositionMode => {
-                let index: i64 = *self.program.entry(self.pointer + 1).or_insert(0);
-                self.program.insert(index, input);
-            }
-            ParameterMode::RelativeMode => {
-                let index: i64 =
-                    self.relative_base + *self.program.entry(self.pointer + 1).or_insert(0);
-                self.program.insert(index, input);
-            }
-            _ => panic!(
-                "Incorrect first parameter mode: {:?}",
-                operation.first_parameter_mode
-            ),
-        }
+        self.program.insert(parameter1, input);
         self.pointer += 2;
     }
 
-    fn out(&mut self, operation: Operation, output: &mut Vec<i64>) {
-        let operand: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        output.push(operand);
+    fn out(&mut self, parameter1: i64, output: &mut Vec<i64>) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        output.push(operand1);
 
         self.pointer += 2;
     }
 
-    fn jit(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn jit(&mut self, parameter1: i64, parameter2: i64) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        if parameter1 != 0 {
-            self.pointer = parameter2;
+        if operand1 != 0 {
+            self.pointer = operand2;
         } else {
             self.pointer += 3;
         }
     }
 
-    fn jif(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn jif(&mut self, parameter1: i64, parameter2: i64) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        if parameter1 == 0 {
-            self.pointer = parameter2;
+        if operand1 == 0 {
+            self.pointer = operand2;
         } else {
             self.pointer += 3;
         }
     }
 
-    fn lth(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn lth(&mut self, parameter1: i64, parameter2: i64, parameter3: i64) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        let result_index: i64 = match operation.third_parameter_mode {
-            ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
-            ParameterMode::RelativeMode => {
-                self.relative_base + *self.program.entry(self.pointer + 3).or_insert(0)
-            }
-            _ => panic!(
-                "Incorrect third parameter mode: {:?}",
-                operation.third_parameter_mode
-            ),
-        };
-
-        if parameter1 < parameter2 {
-            self.program.insert(result_index, 1);
+        if operand1 < operand2 {
+            self.program.insert(parameter3, 1);
         } else {
-            self.program.insert(result_index, 0);
+            self.program.insert(parameter3, 0);
         }
         self.pointer += 4;
     }
 
-    fn eql(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        let parameter2: i64 = self.get_second_parameter(operation.second_parameter_mode);
+    fn eql(&mut self, parameter1: i64, parameter2: i64, parameter3: i64) {
+        let operand1: i64 = *self.program.entry(parameter1).or_insert(0);
+        let operand2: i64 = *self.program.entry(parameter2).or_insert(0);
 
-        let result_index: i64 = match operation.third_parameter_mode {
-            ParameterMode::PositionMode => *self.program.entry(self.pointer + 3).or_insert(0),
-            ParameterMode::RelativeMode => {
-                self.relative_base + *self.program.entry(self.pointer + 3).or_insert(0)
-            }
-            _ => panic!(
-                "Incorrect third parameter mode: {:?}",
-                operation.third_parameter_mode
-            ),
-        };
-
-        if parameter1 == parameter2 {
-            self.program.insert(result_index, 1);
+        if operand1 == operand2 {
+            self.program.insert(parameter3, 1);
         } else {
-            self.program.insert(result_index, 0);
+            self.program.insert(parameter3, 0);
         }
         self.pointer += 4;
     }
 
-    fn arb(&mut self, operation: Operation) {
-        let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
-        self.relative_base += parameter1;
+    fn arb(&mut self, parameter1: i64) {
+        // let parameter1: i64 = self.get_first_parameter(operation.first_parameter_mode);
+        self.relative_base += *self.program.entry(parameter1).or_insert(0);
 
         self.pointer += 2;
     }
